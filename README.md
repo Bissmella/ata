@@ -7,9 +7,11 @@ of generated positive and negative scenarios. No access to the agent's source co
 prompts, or internals is required.
 
 Unlike instrumentation-based eval tools, ATA does not wrap your agent in decorators or
-SDKs. It connects to an endpoint, runs real conversations, and evaluates the outcomes.
-ATA is itself an agent — a system of six coordinated LLM agents orchestrated with
-LangGraph, testing the agent under test from the outside.
+SDKs. It talks to your agent over its real interface — an HTTP/WebSocket endpoint, or a
+plain Python callable — runs real conversations, and evaluates the outcomes. It only ever
+observes inputs and outputs; it never inspects internals. ATA is itself an agent — a
+system of six coordinated LLM agents orchestrated with LangGraph, testing the agent under
+test from the outside.
 
 > This repository is the **framework** (an installable Python library). A separate
 > server/UI that adds persistence, dashboards, and multi-user runs is layered on top
@@ -51,6 +53,23 @@ print(report["metrics"])          # task completion, boundary adherence, ...
 `run_suite` runs the whole pipeline in-process — no database, no broker, no
 external services. It returns a plain report dict you can serialize, assert on in a
 test, or render however you like.
+
+### Testing a Python callable directly
+
+No server to stand up: if your agent is a Python function or object, hand it straight
+to ATA. Set `protocol: callable` in the YAML (no `url` needed) and pass the callable as
+`agent=`. It may be sync or async, and take either `(message)` or `(message, history)`,
+where `history` is the prior turns as `{"user": ..., "agent": ...}` dicts:
+
+```python
+async def my_agent(message: str, history: list[dict]) -> str:
+    # your LangGraph graph, LangChain agent, LLM call, whatever
+    return await my_graph.ainvoke(message, history)
+
+report = asyncio.run(run_suite(open("config.yaml").read(), agent=my_agent))
+```
+
+This stays fully black-box — ATA only sees what the callable returns for each message.
 
 ---
 
@@ -106,8 +125,8 @@ HTTP FAQ agent) for complete, working files.
 ```yaml
 agent_under_test:
   name: "CRM Booking Assistant"
-  url: "wss://crm.example.com/chat"
-  protocol: websocket          # or: http
+  url: "wss://crm.example.com/chat"    # omit for protocol: callable
+  protocol: websocket          # http | websocket | callable
   description: "Books appointments for registered customers..."
   capabilities: [appointment booking, customer lookup]
   known_limitations: [does not handle rescheduling]

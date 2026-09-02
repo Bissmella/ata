@@ -15,6 +15,13 @@ Basic usage::
     print(report["metrics"])
 """
 
+from ata.adapters import (
+    AgentCallable,
+    CallableAdapter,
+    HTTPAdapter,
+    ProtocolAdapter,
+    WebSocketAdapter,
+)
 from ata.agents.orchestrator import OrchestratorAgent, run_suite
 from ata.llm.client import LLMClient, LLMResponse, create_llm_client
 from ata.metrics import QuantitativeMetrics, compute_all_metrics
@@ -43,6 +50,12 @@ __all__ = [
     "create_llm_client",
     "LLMClient",
     "LLMResponse",
+    # adapters
+    "ProtocolAdapter",
+    "HTTPAdapter",
+    "WebSocketAdapter",
+    "CallableAdapter",
+    "AgentCallable",
     # domain models
     "YAMLInput",
     "WorldState",

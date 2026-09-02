@@ -18,6 +18,45 @@ def test_invalid_yaml_syntax():
         parse_and_validate(invalid_yaml)
 
 
+_CALLABLE_YAML = """
+agent_under_test:
+  name: "In-process Agent"
+  protocol: {protocol}
+  description: "A callable agent"
+
+world_state:
+  entities: []
+  catalog: {{}}
+  constraints: []
+  context: {{}}
+
+test_config:
+  total: 1
+  positive: 1
+  negative: 0
+
+llm_config:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+"""
+
+
+def test_callable_protocol_needs_no_url():
+    result, _ = parse_and_validate(_CALLABLE_YAML.format(protocol="callable"))
+    assert result.agent_under_test.protocol == "callable"
+    assert result.agent_under_test.url is None
+
+
+def test_http_protocol_requires_url():
+    with pytest.raises(YAMLValidationError, match="url is required"):
+        parse_and_validate(_CALLABLE_YAML.format(protocol="http"))
+
+
+def test_unknown_protocol_rejected():
+    with pytest.raises(YAMLValidationError):
+        parse_and_validate(_CALLABLE_YAML.format(protocol="grpc"))
+
+
 def test_rag_key_rejected():
     yaml_with_rag = """
 agent_under_test:

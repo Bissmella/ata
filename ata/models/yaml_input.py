@@ -1,15 +1,21 @@
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AgentUnderTest(BaseModel):
     name: str
-    url: str
-    protocol: str = Field(pattern=r"^(http|websocket)$")
+    url: str | None = None
+    protocol: str = Field(pattern=r"^(http|websocket|callable)$")
     description: str
     capabilities: list[str] = Field(default_factory=list)
     known_limitations: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _require_url_for_network_protocols(self):
+        if self.protocol in ("http", "websocket") and not self.url:
+            raise ValueError(f"url is required for protocol '{self.protocol}'")
+        return self
 
 
 class WorldStateInput(BaseModel):

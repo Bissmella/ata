@@ -3,6 +3,7 @@ from typing import Any, Callable, Literal
 from langgraph.graph import END, StateGraph
 
 from ata.adapters.base import ProtocolAdapter
+from ata.adapters.callable_adapter import AgentCallable, CallableAdapter
 from ata.adapters.ws_adapter import create_adapter
 from ata.agents.reporter import reporter_node
 from ata.agents.scenario_generator import scenario_generator_node
@@ -180,9 +181,11 @@ class OrchestratorAgent:
         self,
         yaml_str: str,
         progress_callback: ProgressCallback | None = None,
+        agent: AgentCallable | None = None,
     ):
         self.yaml_str = yaml_str
         self.progress_callback = progress_callback
+        self._agent = agent
         self._graph = None
         self._llm_client: LLMClient | None = None
         self._adapter: ProtocolAdapter | None = None
@@ -230,17 +233,27 @@ class OrchestratorAgent:
             raise RuntimeError(f"Failed to create LLM client for provider '{llm_config.provider}': {e}") from e
 
         agent_config = yaml_input.agent_under_test
+        use_callable = self._agent is not None or agent_config.protocol == "callable"
         try:
-            self._adapter = create_adapter(
-                protocol=agent_config.protocol,
-                url=agent_config.url,
-            )
+            if use_callable:
+                if self._agent is None:
+                    raise ValueError(
+                        "protocol 'callable' requires an `agent` callable passed to "
+                        "run_suite()/OrchestratorAgent()"
+                    )
+                self._adapter = CallableAdapter(self._agent)
+            else:
+                self._adapter = create_adapter(
+                    protocol=agent_config.protocol,
+                    url=agent_config.url,
+                )
         except Exception as e:
             self._llm_client = None
             self._emit_progress("initialization_failed", {
                 "error": f"Protocol adapter creation failed: {e}",
             })
-            raise RuntimeError(f"Failed to create {agent_config.protocol} adapter for '{agent_config.url}': {e}") from e
+            target = "callable agent" if use_callable else f"{agent_config.protocol} adapter for '{agent_config.url}'"
+            raise RuntimeError(f"Failed to create {target}: {e}") from e
 
         self._graph = build_graph(self._llm_client, self._adapter)
 
@@ -316,6 +329,14 @@ class OrchestratorAgent:
 async def run_suite(
     yaml_str: str,
     progress_callback: ProgressCallback | None = None,
+    agent: AgentCallable | None = None,
 ) -> dict[str, Any]:
-    orchestrator = OrchestratorAgent(yaml_str, progress_callback)
+    """Run a full test suite from a YAML config string.
+
+    Pass ``agent`` to test an in-process Python callable directly (sync or
+    async, ``(message)`` or ``(message, history)``) instead of a live HTTP/
+    WebSocket endpoint. When ``agent`` is given, the YAML's ``url``/``protocol``
+    are not required to describe a network endpoint.
+    """
+    orchestrator = OrchestratorAgent(yaml_str, progress_callback, agent=agent)
     return await orchestrator.run()
