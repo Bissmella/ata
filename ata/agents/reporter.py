@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from ata.agents.state import ATAGraphState
 from ata.llm.client import LLMClient
-from ata.metrics import compute_all_metrics
+from ata.metrics import compute_metrics
 from ata.models.suite import DependsOnType, ScenarioType, Verdict
 
 
@@ -181,14 +181,19 @@ async def reporter_node(
                 "recommendations": [],
             }
 
-    metrics = compute_all_metrics(scenarios, verdicts, transcripts)
+    metrics = compute_metrics(
+        scenarios,
+        verdicts,
+        transcripts,
+        agent_under_test=agent_under_test,
+    )
 
     report = {
         "agent_name": agent_under_test.name if agent_under_test else "Unknown",
         "agent_url": agent_under_test.url if agent_under_test else None,
         "verdict_counts": dict(verdict_counts),
         "total_scenarios": len(scenarios),
-        "metrics": metrics.model_dump(),
+        "metrics": metrics,
         "scenarios": per_scenario_results,
         "probe_chains": probe_chains,
         "world_state_audit": world_state_audit,

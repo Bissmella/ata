@@ -1,7 +1,6 @@
 from collections import Counter
-from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from ata.models.suite import (
     DependsOnType,

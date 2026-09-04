@@ -24,7 +24,17 @@ from ata.adapters import (
 )
 from ata.agents.orchestrator import OrchestratorAgent, run_suite
 from ata.llm.client import LLMClient, LLMResponse, create_llm_client
-from ata.metrics import QuantitativeMetrics, compute_all_metrics
+from ata.metrics import (
+    Metric,
+    MetricContext,
+    MetricEngine,
+    MetricRegistry,
+    QuantitativeMetrics,
+    compute_all_metrics,
+    compute_metrics,
+    register,
+    registry,
+)
 from ata.models.suite import (
     Assertion,
     Scenario,
@@ -68,5 +78,12 @@ __all__ = [
     "Turn",
     # metrics
     "compute_all_metrics",
+    "compute_metrics",
     "QuantitativeMetrics",
+    "Metric",
+    "MetricContext",
+    "MetricRegistry",
+    "MetricEngine",
+    "registry",
+    "register",
 ]

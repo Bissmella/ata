@@ -113,6 +113,40 @@ The report quantifies six things rather than handing back a vague pass/fail:
 | **Constraint violations** | Which rules does it break the most? |
 | **Recovery behavior** | On adversarial input, clean refusal vs. confused / error / info-leak? |
 | **Conversation efficiency** | Avg turns to completion / to refusal? |
+| **Latency** | Response time per turn — avg / p50 / p95 / p99 (ms). |
+| **Turn error rate** | Fraction of turns that errored at the transport layer. |
+
+Metrics are pluggable. Each is a `Metric` subclass in a registry, and can hook into
+the run's lifecycle — `on_suite_start`, `on_scenario_start`, `on_turn`,
+`on_scenario_end` — before producing its result in `compute`. Latency is a hook
+metric: it observes each turn.
+
+### Writing a custom metric
+
+```python
+from ata import Metric, register, compute_metrics
+
+@register
+class AvgResponseLength(Metric):
+    name = "avg_response_length"
+    description = "Average agent response length in characters."
+
+    def __init__(self):
+        self._lengths = []
+
+    def on_turn(self, ctx, scenario, turn, index):      # hook into each turn
+        if turn.error is None:
+            self._lengths.append(len(turn.agent_response))
+
+    def compute(self, ctx):
+        n = len(self._lengths)
+        return {"avg_chars": sum(self._lengths) / n if n else None}
+
+# Registered metrics run automatically; `compute_metrics(...)` returns {name: result}.
+```
+
+Register into the global `registry`, or build an isolated `MetricRegistry` and pass it
+to `MetricEngine`. `compute_metrics(..., metrics=["latency"])` runs a chosen subset.
 
 ---
 
