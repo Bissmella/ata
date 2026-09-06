@@ -15,8 +15,6 @@ instrumentation-based eval tools, ATA never wraps your agent in decorators or SD
 only ever observes what goes in and what comes out. ATA is itself an agent: a system of
 six coordinated LLM agents orchestrated with LangGraph, testing your agent from the outside.
 
-> **This repo is the framework** — an installable Python library. A separate server + web
-> UI (persistence, dashboards, live runs) is layered on top of it and lives elsewhere.
 
 ---
 
