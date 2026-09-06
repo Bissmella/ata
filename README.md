@@ -64,7 +64,9 @@ in — who it knows, what it can offer, the rules it must follow — and it:
 ## Install
 
 ```bash
-pip install ata          # or:  uv add ata
+git clone https://github.com/Bissmella/ata
+cd ata
+uv sync                  # or:  pip install -e .
 ```
 
 Requires Python 3.12+. Set the API key for whichever provider drives ATA:
@@ -379,6 +381,7 @@ tests/         unit tests (LLM mocked)
       + on-demand extraction so large files never bloat the prompt context
 - [ ] RAG support (the reserved `rag` key): a document corpus as ground truth for
       generating and grading grounded/out-of-scope questions
+- [ ] Publish to PyPI (`pip install ata`)
 - [ ] `ata` CLI (`ata run config.yaml`) with CI-friendly exit codes
 - [ ] Standalone HTML report renderer for local runs
 - [ ] Scenario snapshot + LLM record/replay for reproducible, low-cost CI runs
