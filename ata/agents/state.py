@@ -1,5 +1,6 @@
 from typing import Any, TypedDict
 
+from ata.assets.base import Asset
 from ata.models.suite import Scenario, ScenarioVerdict
 from ata.models.transcript import Transcript
 from ata.models.world_state import WorldState
@@ -11,6 +12,8 @@ class ATAGraphState(TypedDict, total=False):
     world_state_input: WorldStateInput
     test_config: TestConfig
     llm_config: LLMConfig
+
+    assets: list[Asset]
 
     world_state: WorldState
     scenarios: list[Scenario]

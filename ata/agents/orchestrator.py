@@ -5,6 +5,7 @@ from langgraph.graph import END, StateGraph
 from ata.adapters.base import ProtocolAdapter
 from ata.adapters.callable_adapter import AgentCallable, CallableAdapter
 from ata.adapters.ws_adapter import create_adapter
+from ata.agents.asset_ingestion import asset_ingestion_node
 from ata.agents.reporter import reporter_node
 from ata.agents.scenario_generator import scenario_generator_node
 from ata.agents.scorer import scorer_node
@@ -20,7 +21,10 @@ from ata.services.yaml_parser import YAMLValidationError, parse_and_validate
 ProgressCallback = Callable[[str, dict[str, Any]], None]
 
 
-def _initialize_state(yaml_input: YAMLInput) -> ATAGraphState:
+def _initialize_state(
+    yaml_input: YAMLInput,
+    assets: list | None = None,
+) -> ATAGraphState:
     world_state = WorldState.from_dict(yaml_input.world_state.model_dump())
 
     return ATAGraphState(
@@ -28,6 +32,7 @@ def _initialize_state(yaml_input: YAMLInput) -> ATAGraphState:
         world_state_input=yaml_input.world_state,
         test_config=yaml_input.test_config,
         llm_config=yaml_input.llm_config,
+        assets=assets or [],
         world_state=world_state,
         scenarios=[],
         scenario_batches=[],
@@ -44,6 +49,13 @@ def _initialize_state(yaml_input: YAMLInput) -> ATAGraphState:
         error=None,
         status="initialized",
     )
+
+
+def _create_asset_ingestion_node(llm_client: LLMClient):
+    async def node(state: ATAGraphState) -> dict[str, Any]:
+        return await asset_ingestion_node(state, llm_client)
+
+    return node
 
 
 def _create_scenario_generator_node(llm_client: LLMClient):
@@ -137,6 +149,7 @@ def build_graph(
 ) -> StateGraph:
     graph = StateGraph(ATAGraphState)
 
+    graph.add_node("asset_ingestion", _create_asset_ingestion_node(llm_client))
     graph.add_node("generate_scenarios", _create_scenario_generator_node(llm_client))
     graph.add_node("prepare_batch", _prepare_batch_node)
     graph.add_node("user_simulator", _create_user_simulator_node(llm_client, adapter))
@@ -145,7 +158,8 @@ def build_graph(
     graph.add_node("advance_batch", _advance_batch_node)
     graph.add_node("reporter", _create_reporter_node(llm_client))
 
-    graph.set_entry_point("generate_scenarios")
+    graph.set_entry_point("asset_ingestion")
+    graph.add_edge("asset_ingestion", "generate_scenarios")
 
     graph.add_conditional_edges(
         "generate_scenarios",
@@ -182,10 +196,12 @@ class OrchestratorAgent:
         yaml_str: str,
         progress_callback: ProgressCallback | None = None,
         agent: AgentCallable | None = None,
+        base_dir: str | None = None,
     ):
         self.yaml_str = yaml_str
         self.progress_callback = progress_callback
         self._agent = agent
+        self._base_dir = base_dir
         self._graph = None
         self._llm_client: LLMClient | None = None
         self._adapter: ProtocolAdapter | None = None
@@ -255,9 +271,22 @@ class OrchestratorAgent:
             target = "callable agent" if use_callable else f"{agent_config.protocol} adapter for '{agent_config.url}'"
             raise RuntimeError(f"Failed to create {target}: {e}") from e
 
+        assets = []
+        if yaml_input.assets:
+            from ata.assets.service import load_assets
+
+            try:
+                assets = load_assets(yaml_input.assets, self._base_dir)
+            except Exception as e:
+                self._emit_progress("initialization_failed", {
+                    "error": f"Asset loading failed: {e}",
+                })
+                raise RuntimeError(f"Failed to load assets: {e}") from e
+            self._emit_progress("assets_loaded", {"count": len(assets)})
+
         self._graph = build_graph(self._llm_client, self._adapter)
 
-        initial_state = _initialize_state(yaml_input)
+        initial_state = _initialize_state(yaml_input, assets)
         self._emit_progress("initialized", {
             "agent_name": agent_config.name,
             "total_scenarios": yaml_input.test_config.total,
@@ -330,6 +359,7 @@ async def run_suite(
     yaml_str: str,
     progress_callback: ProgressCallback | None = None,
     agent: AgentCallable | None = None,
+    base_dir: str | None = None,
 ) -> dict[str, Any]:
     """Run a full test suite from a YAML config string.
 
@@ -337,6 +367,8 @@ async def run_suite(
     async, ``(message)`` or ``(message, history)``) instead of a live HTTP/
     WebSocket endpoint. When ``agent`` is given, the YAML's ``url``/``protocol``
     are not required to describe a network endpoint.
+
+    ``base_dir`` resolves relative ``assets`` paths in the YAML (default: cwd).
     """
-    orchestrator = OrchestratorAgent(yaml_str, progress_callback, agent=agent)
+    orchestrator = OrchestratorAgent(yaml_str, progress_callback, agent=agent, base_dir=base_dir)
     return await orchestrator.run()

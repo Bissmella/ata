@@ -46,6 +46,13 @@ def parse_and_validate(yaml_str: str) -> tuple[YAMLInput, str]:
         errors = "; ".join(f"{err['loc']}: {err['msg']}" for err in e.errors())
         raise YAMLValidationError(f"Validation failed: {errors}")
 
+    asset_ids = [a.id for a in parsed.assets]
+    duplicates = {aid for aid in asset_ids if asset_ids.count(aid) > 1}
+    if duplicates:
+        raise YAMLValidationError(
+            f"Duplicate asset id(s): {', '.join(sorted(duplicates))}"
+        )
+
     yaml_hash = hashlib.sha256(yaml_str.encode()).hexdigest()
 
     return parsed, yaml_hash

@@ -30,6 +30,7 @@ six coordinated LLM agents orchestrated with LangGraph, testing your agent from 
 - [How it works](#how-it-works)
 - [Metrics](#metrics)
 - [The input YAML](#the-input-yaml)
+- [Assets](#assets)
 - [The report](#the-report)
 - [Public API](#public-api)
 - [Configuration](#configuration)
@@ -292,6 +293,39 @@ Validation is strict and fails fast with a clear message: `total` must equal
 
 ---
 
+## Assets
+
+Don't hand-write `world_state.entities` for a data-heavy agent — point ATA at a file and
+let it build them. Add an optional `assets:` block; an `AssetIngestionAgent` reads only a
+**bounded, spread-out sample** of the file (never the whole thing, so large files never
+reach a prompt) and turns it into world_state material before scenarios are generated.
+
+```yaml
+assets:
+  - id: customers
+    path: ./customers.csv     # relative to base_dir (default: cwd)
+    format: csv               # csv | jsonl — inferred from the extension if omitted
+    role: entities            # entities | data_sample | knowledge_base
+    sample_size: 50           # how many rows to sample across the whole file
+    seed: 0                   # deterministic, reproducible sampling
+```
+
+```python
+report = asyncio.run(run_suite(open("config.yaml").read(), base_dir="./data"))
+```
+
+- **`role: entities`** — an LLM maps the sampled rows into `world_state.entities`
+  (inferring an id, choosing attributes, keeping variety). Appended to any inline entities.
+- **`role: data_sample`** — the sampled rows are placed as-is (deterministic) under
+  `catalog/<id>`, for agents that reason over a dataset. Use `target:` (a JSON pointer) to
+  place either role elsewhere in world_state.
+- **`role: knowledge_base`** — reserved for RAG; not implemented yet.
+
+Sources are pluggable: `csv` and `jsonl` are built in; register your own `AssetLoader`
+(Parquet, a Databricks query) with `@register_loader` and it slots into the same pipeline.
+
+---
+
 ## The report
 
 `run_suite` returns a dict shaped roughly like this:
@@ -366,6 +400,7 @@ ata/
   models/      domain models — world_state, suite, transcript, yaml_input
   agents/      the six ATA agents + the LangGraph orchestrator + graph state
   adapters/    HTTP, WebSocket, and in-process callable adapters (same Transcript out of each)
+  assets/      pluggable file loaders (CSV/JSONL) + bounded sampling for world_state
   llm/         common LLM interface (Anthropic / OpenAI / Google / OpenRouter / Ollama)
   services/    yaml parsing, placeholder resolution, execution DAG
   metrics/     pluggable metrics — base class, registry, engine, built-ins
@@ -377,10 +412,11 @@ tests/         unit tests (LLM mocked)
 
 ## Roadmap
 
-- [ ] Assets: load `world_state` from external files (CSV/JSON), with a compact manifest
-      + on-demand extraction so large files never bloat the prompt context
-- [ ] RAG support (the reserved `rag` key): a document corpus as ground truth for
-      generating and grading grounded/out-of-scope questions
+- [x] Assets: sample `world_state` entities / data from external files (CSV/JSONL) —
+      only a bounded sample is read, so large files never bloat the prompt (see [Assets](#assets))
+- [ ] Assets: remote sources (a Databricks query, Parquet) as additional loaders
+- [ ] RAG support (the reserved `rag` key / `knowledge_base` asset role): a document
+      corpus as ground truth for generating and grading grounded/out-of-scope questions
 - [ ] Publish to PyPI (`pip install ata`)
 - [ ] `ata` CLI (`ata run config.yaml`) with CI-friendly exit codes
 - [ ] Standalone HTML report renderer for local runs

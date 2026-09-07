@@ -23,6 +23,7 @@ from ata.adapters import (
     WebSocketAdapter,
 )
 from ata.agents.orchestrator import OrchestratorAgent, run_suite
+from ata.assets import Asset, AssetLoader, load_assets, register_loader
 from ata.llm.client import LLMClient, LLMResponse, create_llm_client
 from ata.metrics import (
     Metric,
@@ -66,6 +67,11 @@ __all__ = [
     "WebSocketAdapter",
     "CallableAdapter",
     "AgentCallable",
+    # assets
+    "Asset",
+    "AssetLoader",
+    "register_loader",
+    "load_assets",
     # domain models
     "YAMLInput",
     "WorldState",

@@ -36,8 +36,28 @@ class LLMConfig(BaseModel):
     model: str
 
 
+class AssetSpec(BaseModel):
+    """An external data source ATA samples from to build test material.
+
+    ``format`` is inferred from the path extension when omitted. ``role`` decides
+    what the sample becomes: ``entities`` / ``data_sample`` are ingested into
+    world_state; ``knowledge_base`` is reserved for RAG. ``target`` is an optional
+    JSON pointer overriding where the ingested data is placed in world_state.
+    """
+
+    id: str
+    path: str
+    format: str | None = Field(default=None, pattern=r"^(csv|jsonl)$")
+    role: str = Field(default="entities", pattern=r"^(entities|data_sample|knowledge_base)$")
+    sample_size: int = Field(default=50, ge=1)
+    seed: int = 0
+    description: str | None = None
+    target: str | None = None
+
+
 class YAMLInput(BaseModel):
     agent_under_test: AgentUnderTest
     world_state: WorldStateInput
     test_config: TestConfig
     llm_config: LLMConfig
+    assets: list[AssetSpec] = Field(default_factory=list)

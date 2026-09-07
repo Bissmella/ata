@@ -57,6 +57,64 @@ def test_unknown_protocol_rejected():
         parse_and_validate(_CALLABLE_YAML.format(protocol="grpc"))
 
 
+_ASSET_YAML = """
+agent_under_test:
+  name: "Data Agent"
+  protocol: callable
+  description: "reasons over data"
+
+world_state:
+  entities: []
+  catalog: {{}}
+  constraints: []
+  context: {{}}
+
+test_config:
+  total: 1
+  positive: 1
+  negative: 0
+
+llm_config:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+
+assets:
+{assets}
+"""
+
+
+def test_assets_parse():
+    result, _ = parse_and_validate(_ASSET_YAML.format(
+        assets="  - id: customers\n    path: ./customers.csv\n    role: entities\n"
+    ))
+    assert len(result.assets) == 1
+    assert result.assets[0].id == "customers"
+    assert result.assets[0].sample_size == 50  # default
+
+
+def test_duplicate_asset_id_rejected():
+    dup = (
+        "  - id: customers\n    path: ./a.csv\n"
+        "  - id: customers\n    path: ./b.csv\n"
+    )
+    with pytest.raises(YAMLValidationError, match="Duplicate asset id"):
+        parse_and_validate(_ASSET_YAML.format(assets=dup))
+
+
+def test_unsupported_asset_format_rejected():
+    with pytest.raises(YAMLValidationError):
+        parse_and_validate(_ASSET_YAML.format(
+            assets="  - id: c\n    path: ./c.parquet\n    format: parquet\n"
+        ))
+
+
+def test_unsupported_asset_role_rejected():
+    with pytest.raises(YAMLValidationError):
+        parse_and_validate(_ASSET_YAML.format(
+            assets="  - id: c\n    path: ./c.csv\n    role: bogus\n"
+        ))
+
+
 def test_rag_key_rejected():
     yaml_with_rag = """
 agent_under_test:
