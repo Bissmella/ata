@@ -27,3 +27,7 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Private working notes / local Claude Code config
+docs/roadmap.md
+.claude/settings.local.json
