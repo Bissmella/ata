@@ -1,7 +1,7 @@
-"""Voice I/O abstraction for the thin voice channel.
+"""Voice I/O abstraction
 
-Thin voice needs only batch request/response — synthesize text to audio, and
-transcribe audio to text — so a provider is a small class, not a subsystem.
+Thin voice needs only batch request/responseو synthesize text to audio, and
+transcribe audio to text.
 Streaming / realtime / VAD are deferred to the thick phase and the Pipecat bridge.
 
 STT and TTS are separate abstractions so a run can mix providers (e.g. one for
