@@ -1,6 +1,6 @@
-from datetime import UTC, datetime
 import json
 import time
+from datetime import UTC, datetime
 
 import websockets
 from websockets.exceptions import WebSocketException
@@ -75,7 +75,7 @@ class WebSocketAdapter(ProtocolAdapter):
                 agent_response="",
                 timestamp=datetime.now(UTC),
                 latency_ms=latency_ms,
-                error=f"WebSocket error: {str(e)}",
+                error=f"WebSocket error: {e!s}",
             )
         except json.JSONDecodeError as e:
             latency_ms = int((time.perf_counter() - start_time) * 1000)
@@ -84,7 +84,7 @@ class WebSocketAdapter(ProtocolAdapter):
                 agent_response="",
                 timestamp=datetime.now(UTC),
                 latency_ms=latency_ms,
-                error=f"Invalid JSON response: {str(e)}",
+                error=f"Invalid JSON response: {e!s}",
             )
 
     async def end_session(self, session_id: str) -> None:
@@ -100,8 +100,16 @@ class WebSocketAdapter(ProtocolAdapter):
             await self.end_session(session_id)
 
 
-def create_adapter(protocol: str, url: str, timeout: float = 30.0) -> ProtocolAdapter:
+def create_adapter(
+    protocol: str,
+    url: str,
+    timeout: float = 30.0,
+    voice=None,
+) -> ProtocolAdapter:
     from ata.adapters.http_adapter import HTTPAdapter
+
+    if protocol == "voice_websocket":
+        return _create_voice_adapter(url=url, timeout=timeout, voice=voice)
 
     adapters = {
         "http": HTTPAdapter,
@@ -109,6 +117,33 @@ def create_adapter(protocol: str, url: str, timeout: float = 30.0) -> ProtocolAd
     }
 
     if protocol not in adapters:
-        raise ValueError(f"Unknown protocol: {protocol}. Must be one of: {list(adapters.keys())}")
+        raise ValueError(
+            f"Unknown protocol: {protocol}. "
+            f"Must be one of: {list(adapters.keys()) + ['voice_websocket']}"
+        )
 
     return adapters[protocol](url=url, timeout=timeout)
+
+
+def _create_voice_adapter(url: str, timeout: float, voice) -> ProtocolAdapter:
+    from ata.adapters.voice_ws_adapter import VoiceWebSocketAdapter
+    from ata.models.yaml_input import VoiceConfig
+    from ata.voice.registry import create_voice_io
+
+    voice = voice or VoiceConfig()
+    voice_io = create_voice_io(
+        stt_provider=voice.stt.provider,
+        stt_model=voice.stt.model,
+        tts_provider=voice.tts.provider,
+        tts_model=voice.tts.model,
+        voice=voice.tts.voice,
+        language=voice.tts.language,
+        accent=voice.tts.accent,
+    )
+    greeting_timeout = min(timeout, max(voice.endpointing.silence_ms / 1000.0, 1.0))
+    return VoiceWebSocketAdapter(
+        url=url,
+        voice_io=voice_io,
+        timeout=timeout,
+        greeting_timeout=greeting_timeout,
+    )

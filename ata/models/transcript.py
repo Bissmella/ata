@@ -7,12 +7,33 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+class VoiceMeta(BaseModel):
+    """Per-turn voice telemetry, captured by voice adapters.
+
+    Every field is optional: text adapters never set it.
+    Used for voice-based metrics.
+    """
+
+    time_to_first_audio_ms: int | None = None  # start of agent speech, not round-trip
+    agent_speech_ms: int | None = None
+    user_speech_ms: int | None = None
+    silence_gaps_ms: list[int] = Field(default_factory=list)
+    interrupted: bool | None = None  # reserved for barge-in orchestration
+    dtmf: str | None = None
+    stt_confidence: float | None = None
+    voice: str | None = None  # the TTS voice ATA spoke with
+    accent: str | None = None
+    language: str | None = None
+    audio_ref: str | None = None  # blob key for recorded audio, if stored
+
+
 class Turn(BaseModel):
     user_message: str
     agent_response: str
     timestamp: datetime = Field(default_factory=_utcnow)
     latency_ms: int = 0
     error: str | None = None
+    voice: VoiceMeta | None = None
 
 
 class Transcript(BaseModel):
@@ -22,6 +43,9 @@ class Transcript(BaseModel):
     started_at: datetime = Field(default_factory=_utcnow)
     ended_at: datetime | None = None
     protocol: str
+    # Voice agents speak first; captured here so turn counts stay clean.
+    opening_utterance: str | None = None
+    opening_voice: VoiceMeta | None = None
 
     def add_turn(self, turn: Turn) -> None:
         self.turns.append(turn)

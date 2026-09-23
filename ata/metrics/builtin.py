@@ -23,7 +23,6 @@ from ata.metrics.registry import register
 from ata.models.suite import Scenario
 from ata.models.transcript import Turn
 
-
 # ── The six aggregate metrics (wrap the existing pure functions) ──────────────
 
 @register
@@ -156,4 +155,44 @@ class TurnErrorRateMetric(Metric):
             total_turns=self._total,
             error_turns=self._errors,
             rate=self._errors / self._total if self._total else 0.0,
+        )
+
+
+# ── Voice metric (thin proof; template for the thick voice metrics) ───────────
+
+class TimeToFirstAudioResult(BaseModel):
+    turns: int
+    avg_ms: float | None
+    p50_ms: float | None
+    p95_ms: float | None
+
+
+@register
+class TimeToFirstAudioMetric(Metric):
+    """How long after the user speaks the agent starts talking back.
+
+    Reads ``turn.voice.time_to_first_audio_ms``, recorded by voice adapters. On a
+    text run no turn carries ``voice``, so this reports zero samples. This is the
+    first metric to consume ``VoiceMeta`` and the template for the rest (barge-in,
+    talk-over, silence recovery) — each a new @register'd metric, no engine change.
+    """
+
+    name = "time_to_first_audio"
+    description = "Agent time-to-first-audio across voice turns (ms)."
+
+    def __init__(self) -> None:
+        self._samples: list[int] = []
+
+    def on_turn(self, ctx: MetricContext, scenario: Scenario, turn: Turn, index: int) -> None:
+        if turn.error is None and turn.voice and turn.voice.time_to_first_audio_ms is not None:
+            self._samples.append(turn.voice.time_to_first_audio_ms)
+
+    def compute(self, ctx: MetricContext) -> TimeToFirstAudioResult:
+        s = sorted(self._samples)
+        n = len(s)
+        return TimeToFirstAudioResult(
+            turns=n,
+            avg_ms=sum(s) / n if n else None,
+            p50_ms=_percentile(s, 50),
+            p95_ms=_percentile(s, 95),
         )
