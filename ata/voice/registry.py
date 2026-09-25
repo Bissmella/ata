@@ -14,7 +14,7 @@ and anyone can bring their own in a few lines::
         async def transcribe(self, audio, *, language=None): ...
 
 The long tail of providers is also reachable through the optional Pipecat bridge
-(``ata.voice.bridges.pipecat``) without ATA maintaining each one.
+(``ata.voice.bridges.pipecat``).
 """
 
 from __future__ import annotations

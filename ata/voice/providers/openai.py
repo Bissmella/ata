@@ -1,7 +1,6 @@
-"""OpenAI STT/TTS — the one built-in reference provider.
+"""OpenAI STT/TTS
 
-OpenAI is already a core dependency (used by the LLM client), so shipping it as
-the reference adds no new heavy dep. It does both sides: Whisper for transcription
+Both sides: Whisper for transcription
 and the TTS models for synthesis. Keys come from the environment via ``settings``,
 never from the YAML — the same rule as the LLM client.
 """

@@ -1,9 +1,3 @@
-"""Voice channel: STT/TTS abstraction, registry, and built-in providers.
-
-Importing this package registers the built-in reference provider (OpenAI). Third
-parties register their own via ``register_stt`` / ``register_tts``; the long tail
-is also reachable through the optional Pipecat bridge.
-"""
 
 # Register the built-in reference providers (OpenAI STT + TTS).
 from ata.voice import providers as _providers  # noqa: F401

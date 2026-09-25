@@ -1,19 +1,11 @@
 """Optional Pipecat bridge — reach the long tail of STT/TTS providers.
 
 Pipecat (https://github.com/pipecat-ai/pipecat) maintains service plugins for
-dozens of STT/TTS providers (Deepgram, ElevenLabs, Cartesia, Azure, ...). Rather
-than re-wrapping each one, ATA exposes a single bridge that adapts a Pipecat
-service to ATA's ``STTClient`` / ``TTSClient`` interface, so the whole ecosystem
-is reachable and maintained upstream.
+dozens of STT/TTS providers (Deepgram, ElevenLabs, Cartesia, Azure, ...). Exposing
+a single bridge that adapts a Pipecat service to ATA's ``STTClient`` / ``TTSClient``
+interface, so the whole ecosystem is reachable and maintained upstream.
 
-This is an OPTIONAL extra — Pipecat is not a core dependency. Install with::
-
-    pip install "ata[pipecat]"
-
-NOTE (scaffold): Pipecat services are streaming / frame-based, whereas the thin
-channel calls them in batch. The batch<->frame glue is intentionally left as a
-focused follow-up; construction lazily imports Pipecat and fails with an
-actionable message if the extra is missing. See ``docs/voice-plan.md``.
+This is an OPTIONAL extra — Pipecat is not a core dependency.
 """
 
 from __future__ import annotations
@@ -44,8 +36,7 @@ class PipecatSTT(STTClient):
         if service is None:
             raise NotImplementedError(
                 "PipecatSTT currently requires a pre-constructed Pipecat STT service "
-                "passed as `service=`. Auto-construction from provider name is a "
-                "planned follow-up (see docs/voice-plan.md)."
+                "passed as `service=`."
             )
         self._service = service
 

@@ -79,7 +79,6 @@ class ConversationEfficiency(Metric):
         return compute_conversation_efficiency(ctx.scenarios, ctx.verdicts, ctx.transcripts)
 
 
-# ── Hook-based metrics ────────────────────────────────────────────────────────
 
 def _percentile(sorted_values: list[int], p: float) -> float | None:
     if not sorted_values:
@@ -158,7 +157,6 @@ class TurnErrorRateMetric(Metric):
         )
 
 
-# ── Voice metric (thin proof; template for the thick voice metrics) ───────────
 
 class TimeToFirstAudioResult(BaseModel):
     turns: int
@@ -169,12 +167,8 @@ class TimeToFirstAudioResult(BaseModel):
 
 @register
 class TimeToFirstAudioMetric(Metric):
-    """How long after the user speaks the agent starts talking back.
-
-    Reads ``turn.voice.time_to_first_audio_ms``, recorded by voice adapters. On a
-    text run no turn carries ``voice``, so this reports zero samples. This is the
-    first metric to consume ``VoiceMeta`` and the template for the rest (barge-in,
-    talk-over, silence recovery) — each a new @register'd metric, no engine change.
+    """
+    Time passed between user speach (ATA) and agent under test voice response.
     """
 
     name = "time_to_first_audio"
